@@ -205,7 +205,7 @@ macro_rules! parse_input {
 fn from_input() -> State {
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
-    output_if!("{input_line}");
+    // output_if!("{input_line}");
     let inputs = input_line.split(' ').collect::<Vec<_>>();
     let x = parse_input!(inputs[0], i32);
     let y = parse_input!(inputs[1], i32);
@@ -215,13 +215,13 @@ fn from_input() -> State {
     };
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
-    output_if!("{input_line}");
+    // output_if!("{input_line}");
     let human_count = parse_input!(input_line, i32);
     let mut humans = Vec::with_capacity(human_count as usize);
     for _ in 0..human_count as usize {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
-        output_if!("{input_line}");
+        // output_if!("{input_line}");
         let inputs = input_line.split(' ').collect::<Vec<_>>();
         let human_id = parse_input!(inputs[0], i32);
         let human_x = parse_input!(inputs[1], i32);
@@ -236,14 +236,14 @@ fn from_input() -> State {
     }
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
-    output_if!("{input_line}");
+    // output_if!("{input_line}");
     let zombie_count = parse_input!(input_line, i32);
     let mut zombies = Vec::with_capacity(zombie_count as usize);
     let mut zombies_next = Vec::with_capacity(zombie_count as usize);
     for _i in 0..zombie_count as usize {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
-        output_if!("{input_line}");
+        // output_if!("{input_line}");
         let inputs = input_line.split(' ').collect::<Vec<_>>();
         let zombie_id = parse_input!(inputs[0], i32);
         let zombie_x = parse_input!(inputs[1], i32);
@@ -277,20 +277,27 @@ fn from_input() -> State {
 }
 
 fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
-    let min_dist = state
+    let min_human_dist = state
         .humans
         .iter()
         .map(|human| human.pos.range(&state.player.pos))
         .min()
         .unwrap_or(0);
 
+    let min_zombie_dist = state
+        .zombies
+        .iter()
+        .map(|zombie| zombie.pos.range(&state.player.pos))
+        .min()
+        .unwrap_or(0);
+
     let mut steps = 1;
-    if min_dist > 5000 {
+    if min_human_dist > 5000 || min_zombie_dist > 5000 {
         steps = 5;
     }
 
     let mut player_dist = 500.0;
-    if min_dist > 1000 {
+    if min_human_dist > 1000 {
         player_dist = 1000.0
     }
 
@@ -300,7 +307,7 @@ fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
     let mut test_state;
     let mut sims = 0;
     let mut ways = 0;
-    while from.elapsed().as_millis() < 90 {
+    while from.elapsed().as_millis() < 95 {
         test_state = state.clone();
         action_gen.gen();
         ways += 1;
@@ -315,7 +322,7 @@ fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
             }
         }
 
-        output_if!("actions: {:?}, state: {:?}", action_gen.actions, test_state);
+        // output_if!("actions: {:?}, state: {:?}", action_gen.actions, test_state);
 
         if test_state.score > best_score {
             best_score = test_state.score;
@@ -323,7 +330,7 @@ fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
         }
     }
 
-    eprintln!("ways {ways} sims: {sims}");
+    // eprintln!("ways {ways} sims: {sims}");
 
     let mut output = state.player.pos;
     output.move_to_dir(&best_action, player_dist);
