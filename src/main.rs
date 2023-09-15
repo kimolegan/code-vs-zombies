@@ -2,7 +2,6 @@ use std::io;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rand::Rng;
 
 const MAX_X: i32 = 16000;
 const MAX_Y: i32 = 9000;
@@ -109,22 +108,33 @@ struct ActionGen {
 
 impl ActionGen {
     pub fn new() -> Self {
-        let mut res = ActionGen {
+        ActionGen {
             actions: [Direction { x: 0.0, y: 0.0 }; 8],
-            possible_actions: [Direction { x: 0.0, y: 0.0 }; 9],
+            possible_actions: [
+                Direction {
+                    x: 0.70710677,
+                    y: 0.70710677,
+                },
+                Direction { x: 1.0, y: 0.0 },
+                Direction {
+                    x: 0.70710677,
+                    y: -0.70710677,
+                },
+                Direction { x: 0.0, y: 1.0 },
+                Direction { x: 0.0, y: 0.0 },
+                Direction { x: 0.0, y: -1.0 },
+                Direction {
+                    x: -0.70710677,
+                    y: 0.70710677,
+                },
+                Direction { x: -1.0, y: 0.0 },
+                Direction {
+                    x: -0.70710677,
+                    y: -0.70710677,
+                },
+            ],
             rng: thread_rng(),
-        };
-
-        let mut i = 0;
-        for x in [-1, 0, 1] {
-            for y in [-1, 0, 1] {
-                res.possible_actions[i] =
-                    Vector::from(&Point { x, y }, &EMPTY_POINT).as_direction();
-                i += 1;
-            }
         }
-
-        res
     }
 
     pub fn gen(&mut self) {
@@ -141,7 +151,7 @@ impl State {
         }
     }
 
-    pub fn next(&mut self, dir: &Direction) {
+    pub fn next(&mut self, dir: &Direction, player_dist: f32) {
         let zombies_before = self.zombies.len();
         let humans_before = self.humans.len();
 
@@ -154,7 +164,7 @@ impl State {
         }
 
         // player moves
-        self.player.pos.move_to_dir(dir, 1000.0);
+        self.player.pos.move_to_dir(dir, player_dist);
 
         // player kills zombies
         let player = self.player;
@@ -170,7 +180,7 @@ impl State {
         if self.humans.is_empty() {
             self.score = i64::MIN;
         } else {
-            self.score += ((zombies_before - self.zombies.len()) * 10) as i64;
+            self.score += ((zombies_before - self.zombies.len()).pow(2)) as i64;
             self.score -= ((humans_before - self.humans.len()) * 1000) as i64;
         }
     }
@@ -214,7 +224,6 @@ fn from_input() -> State {
         output_if!("{input_line}");
         let inputs = input_line.split(' ').collect::<Vec<_>>();
         let human_id = parse_input!(inputs[0], i32);
-        // eprintln!("human id: {human_id}");
         let human_x = parse_input!(inputs[1], i32);
         let human_y = parse_input!(inputs[2], i32);
         humans.push(Human {
@@ -237,7 +246,6 @@ fn from_input() -> State {
         output_if!("{input_line}");
         let inputs = input_line.split(' ').collect::<Vec<_>>();
         let zombie_id = parse_input!(inputs[0], i32);
-        // eprintln!("zombie id: {zombie_id}");
         let zombie_x = parse_input!(inputs[1], i32);
         let zombie_y = parse_input!(inputs[2], i32);
         let zombie_xnext = parse_input!(inputs[3], i32);
@@ -269,6 +277,23 @@ fn from_input() -> State {
 }
 
 fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
+    let min_dist = state
+        .humans
+        .iter()
+        .map(|human| human.pos.range(&state.player.pos))
+        .min()
+        .unwrap_or(0);
+
+    let mut steps = 1;
+    if min_dist > 5000 {
+        steps = 5;
+    }
+
+    let mut player_dist = 500.0;
+    if min_dist > 1000 {
+        player_dist = 1000.0
+    }
+
     let from = std::time::Instant::now();
     let mut best_score = i64::MIN;
     let mut best_action: Direction = Direction { x: 0.0, y: 0.0 };
@@ -280,11 +305,11 @@ fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
         action_gen.gen();
         ways += 1;
         for action in &action_gen.actions {
-            sims += 4;
-            test_state.next(action);
-            test_state.next(action);
-            test_state.next(action);
-            test_state.next(action);
+            sims += steps;
+            for _ in 0..steps {
+                test_state.next(action, player_dist);
+            }
+
             if test_state.score == i64::MIN {
                 break;
             }
@@ -301,7 +326,7 @@ fn find_solution(state: State, action_gen: &mut ActionGen) -> Point {
     eprintln!("ways {ways} sims: {sims}");
 
     let mut output = state.player.pos;
-    output.move_to_dir(&best_action, 1000.0);
+    output.move_to_dir(&best_action, player_dist);
     output.x = output.x.clamp(0, MAX_X);
     output.y = output.y.clamp(0, MAX_Y);
     output
@@ -332,7 +357,7 @@ fn test_move() {
 
 #[test]
 fn test_gen() {
-    let mut action_gen = ActionGen::new();
+    let action_gen = ActionGen::new();
     eprint!("{:?}", action_gen.possible_actions);
 }
 
